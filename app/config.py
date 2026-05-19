@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     FIREBASE_PROJECT_ID: str = ""
     FIREBASE_CLIENT_EMAIL: str = ""
     FIREBASE_PRIVATE_KEY: str = ""
+    FIREBASE_STORAGE_BUCKET: str = ""
+    FIREBASE_CREDENTIALS_PATH: str = "firebase-credentials.json"
 
     class Config:
         env_file = ".env"

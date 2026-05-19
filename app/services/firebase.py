@@ -1,6 +1,7 @@
+import os
 import firebase_admin
 from firebase_admin import credentials
-from app.config import settings
+from pathlib import Path
 
 
 _cred = None
@@ -10,13 +11,9 @@ _app = None
 def get_firebase_cred():
     global _cred
     if _cred is None:
-        _cred = credentials.Certificate({
-            "type": "service_account",
-            "project_id": settings.FIREBASE_PROJECT_ID,
-            "private_key": settings.FIREBASE_PRIVATE_KEY.replace("\\n", "\n"),
-            "client_email": settings.FIREBASE_CLIENT_EMAIL,
-            "token_uri": "https://oauth2.googleapis.com/token",
-        })
+        base_dir = Path(__file__).parent.parent.parent
+        cred_path = os.path.join(base_dir, "firebase-credentials.json")
+        _cred = credentials.Certificate(cred_path)
     return _cred
 
 
