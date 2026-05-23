@@ -11,7 +11,6 @@ class Exam(Base):
     name = Column(String, nullable=False)
     duration = Column(Integer, nullable=False)
     question_count = Column(Integer, nullable=False)
-    difficulty = Column(String, nullable=False)  # easy, medium, hard
     skills = Column(JSON, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

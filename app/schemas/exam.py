@@ -8,7 +8,6 @@ class ExamResponse(BaseModel):
     name: str
     duration: int
     questionCount: int
-    difficulty: str
     skills: Dict[str, int]
     status: Optional[str] = None
     attempts: int = 0

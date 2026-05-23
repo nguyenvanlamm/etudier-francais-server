@@ -30,7 +30,6 @@ def seed_exams():
                 name=exam_data["name"],
                 duration=exam_data["duration"],
                 question_count=exam_data["questionCount"],
-                difficulty=exam_data["difficulty"],
                 skills=exam_data["skills"]
             )
             db.add(exam)
