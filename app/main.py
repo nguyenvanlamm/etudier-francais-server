@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import Base, engine
+from app.models import Exam, ExamResult, Question
 from app.routers import auth, exams, courses, contact
 
 Base.metadata.create_all(bind=engine)

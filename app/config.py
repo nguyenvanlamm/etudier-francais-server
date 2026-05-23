@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     FIREBASE_STORAGE_BUCKET: str = ""
     FIREBASE_CREDENTIALS_PATH: str = "firebase-credentials.json"
 
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

@@ -29,3 +29,5 @@ class ExamResult(Base):
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    ai_grading_status = Column(String, default="idle")
+    ai_feedback = Column(JSON, default={})

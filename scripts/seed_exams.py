@@ -4,9 +4,9 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database import SessionLocal, Base, engine
+from app.database import SessionLocal
 from app.models.exam import Exam
-from app.routers.exams import MOCK_EXAMS, MOCK_QUESTIONS, generate_sample_questions
+from app.routers.exams import MOCK_EXAMS
 
 
 def seed_exams():
@@ -41,13 +41,8 @@ def seed_exams():
         print(f"\nSeeding completed!")
         print(f"Total exams in DB: {final_count}")
         
-        print("\n--- Sample Questions Summary ---")
-        for exam_id, questions in MOCK_QUESTIONS.items():
-            print(f"{exam_id}: {len(questions)} questions")
-        
-        extra_exams = [e for e in MOCK_EXAMS if e["id"] not in MOCK_QUESTIONS]
-        print(f"\nExams without custom questions: {len(extra_exams)}")
-        print("These will use generated sample questions.")
+        print("\nNote: Questions are stored in the 'questions' table.")
+        print("Run scripts/migrate_questions_to_db.py to populate questions from MOCK_QUESTIONS.")
         
     except Exception as e:
         print(f"Error during seeding: {e}")
