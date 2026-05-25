@@ -1,6 +1,8 @@
 import json
+import time
 from google import genai
 from google.genai import types
+from google.genai.errors import ClientError
 from app.config import settings
 from app.database import SessionLocal
 from app.models.exam import ExamResult
@@ -222,24 +224,46 @@ def grade_writing_speaking_sync(
         feedback = {}
         ai_status = "completed"
     else:
-        try:
-            client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
-                model=settings.GEMINI_MODEL,
-                contents=build_user_message(ws_questions, level),
-                config=types.GenerateContentConfig(
-                    system_instruction=build_system_prompt(),
-                    temperature=0.3,
-                    response_mime_type="application/json",
-                ),
-            )
-            feedback = parse_response(
-                response.text,
-                [q["id"] for q in ws_questions],
-            )
-            ai_status = "completed"
-        except Exception as e:
-            print(f"AI grading error for exam {exam_id}, result {result_id}: {e}")
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        max_retries = 3
+        last_error = None
+
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=settings.GEMINI_MODEL,
+                    contents=build_user_message(ws_questions, level),
+                    config=types.GenerateContentConfig(
+                        system_instruction=build_system_prompt(),
+                        temperature=0.3,
+                        response_mime_type="application/json",
+                    ),
+                )
+                feedback = parse_response(
+                    response.text,
+                    [q["id"] for q in ws_questions],
+                )
+                ai_status = "completed"
+                last_error = None
+                break
+            except ClientError as e:
+                last_error = e
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    delay = 2 ** attempt * 5
+                    print(f"AI grading quota exceeded (attempt {attempt + 1}/{max_retries}), retrying in {delay}s: {e}")
+                    time.sleep(delay)
+                else:
+                    print(f"AI grading client error (attempt {attempt + 1}/{max_retries}): {e}")
+                    break
+            except Exception as e:
+                last_error = e
+                print(f"AI grading error (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt * 2)
+                break
+
+        if last_error:
+            print(f"AI grading failed for exam {exam_id}, result {result_id}: {last_error}")
             feedback = {}
             ai_status = "failed"
 

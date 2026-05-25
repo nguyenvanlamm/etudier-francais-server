@@ -522,8 +522,13 @@ def submit_exam(
         user_answer = request.answers.get(q["id"], "")
         if q.get("type") in ["short_answer", "essay"]:
             pass
-        elif user_answer.lower() == q.get("correctAnswer", "").lower():
-            correct_count += q.get("points", 1)
+        else:
+            ua = user_answer.lower()
+            ca = q.get("correctAnswer", "")
+            if q.get("type") == "true_false":
+                ua = {"vrai": "true", "faux": "false"}.get(ua, ua)
+            if ua == ca.lower():
+                correct_count += q.get("points", 1)
 
     score = correct_count
     max_score = total_points
@@ -591,6 +596,46 @@ def get_ai_grading_status(
     }
 
 
+@router.post("/{examId}/results/{resultId}/ai-retry")
+def retry_ai_grading(
+    examId: str,
+    resultId: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    result = db.query(ExamResult).filter(
+        ExamResult.id == int(resultId),
+        ExamResult.user_id == current_user.id,
+        ExamResult.exam_id == examId
+    ).first()
+
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Result not found")
+
+    if result.ai_grading_status != "failed":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot retry: current status is '{result.ai_grading_status}'")
+
+    exam = db.query(Exam).filter(Exam.id == examId).first()
+    questions = _get_questions_from_db(db, examId)
+    if not questions and exam and exam.skills:
+        questions = generate_sample_questions(examId, exam.skills)
+
+    result.ai_grading_status = "pending"
+    result.ai_feedback = {}
+    db.commit()
+
+    background_tasks.add_task(
+        grade_writing_speaking_sync,
+        examId,
+        result.id,
+        questions,
+        result.answers,
+    )
+
+    return {"aiGradingStatus": "pending"}
+
+
 @router.get("/{examId}/results/{resultId}/review")
 def get_exam_review(
     examId: str,
@@ -629,9 +674,17 @@ def get_exam_review(
     ai_feedback = result.ai_feedback or {}
     for q in questions:
         user_answer = result.answers.get(q["id"], "")
-        is_correct = user_answer.lower() == q.get("correctAnswer", "").lower() if q.get("correctAnswer") else False
+        ca = q.get("correctAnswer", "")
+        ua = user_answer.lower()
+        if q.get("type") == "true_false":
+            ua = {"vrai": "true", "faux": "false"}.get(ua, ua)
+        is_correct = ua == ca.lower() if ca else False
         fb = ai_feedback.get(q["id"])
         is_correct = fb.get("score", 0) >= 10 if fb and q["skill"] in ("writing", "speaking") else is_correct
+
+        display_answer = ca
+        if q.get("type") == "true_false":
+            display_answer = {"true": "Vrai", "false": "Faux"}.get(ca.lower(), ca)
 
         review_questions.append({
             "id": q["id"],
@@ -640,7 +693,7 @@ def get_exam_review(
             "content": q.get("content", ""),
             "instruction": q.get("instruction", ""),
             "options": q.get("options", []),
-            "answer": q.get("correctAnswer", ""),
+            "answer": display_answer,
             "explanation": None,
             "audioUrl": None,
             "imageUrl": None,
