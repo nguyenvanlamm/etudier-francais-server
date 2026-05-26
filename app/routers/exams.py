@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -478,7 +479,7 @@ def get_exam(
         questions = generate_sample_questions(examId, exam.skills)
     
     # Add full URL for audio files
-    base_url = "http://localhost:5000"
+    base_url = os.environ.get("SERVER_BASE_URL", "http://localhost:5000")
     for q in questions:
         if q.get("audioUrl") and q["audioUrl"].startswith("/assets"):
             q["audioUrl"] = f"{base_url}{q['audioUrl']}"
