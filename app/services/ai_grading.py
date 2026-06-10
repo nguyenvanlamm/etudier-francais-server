@@ -1,9 +1,8 @@
 import json
 import re
 import time
-from google import genai
-from google.genai import types
-from google.genai.errors import ClientError
+from openai import OpenAI
+from openai import APIError, RateLimitError
 from app.config import settings
 from app.database import SessionLocal
 from app.models.exam import ExamResult
@@ -217,7 +216,7 @@ def grade_writing_speaking_sync(
     questions: list,
     user_answers: dict,
 ):
-    """Grade writing/speaking questions using Gemini."""
+    """Grade writing/speaking questions using OpenRouter AI."""
     level = _get_level_from_exam_id(exam_id)
 
     ws_questions = [
@@ -239,37 +238,44 @@ def grade_writing_speaking_sync(
         feedback = {}
         ai_status = "completed"
     else:
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        client = OpenAI(
+            api_key=settings.OPENROUTER_API_KEY,
+            base_url="https://openrouter.ai/api/v1",
+        )
         max_retries = 3
         last_error = None
 
         for attempt in range(max_retries):
             try:
-                response = client.models.generate_content(
-                    model=settings.GEMINI_MODEL,
-                    contents=build_user_message(ws_questions, level),
-                    config=types.GenerateContentConfig(
-                        system_instruction=build_system_prompt(),
-                        temperature=0.3,
-                        response_mime_type="application/json",
-                    ),
+                response = client.chat.completions.create(
+                    model=settings.OPENROUTER_MODEL,
+                    messages=[
+                        {"role": "system", "content": build_system_prompt()},
+                        {"role": "user", "content": build_user_message(ws_questions, level)},
+                    ],
+                    temperature=0.3,
+                    response_format={"type": "json_object"},
+                    extra_headers={
+                        "HTTP-Referer": "https://etudierfrancais.com",
+                        "X-Title": "Etudier Francais",
+                    },
                 )
                 feedback = parse_response(
-                    response.text,
+                    response.choices[0].message.content,
                     [q["id"] for q in ws_questions],
                 )
                 ai_status = "completed"
                 last_error = None
                 break
-            except ClientError as e:
+            except RateLimitError as e:
                 last_error = e
-                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                    delay = 2 ** attempt * 5
-                    print(f"AI grading quota exceeded (attempt {attempt + 1}/{max_retries}), retrying in {delay}s: {e}")
-                    time.sleep(delay)
-                else:
-                    print(f"AI grading client error (attempt {attempt + 1}/{max_retries}): {e}")
-                    break
+                delay = 2 ** attempt * 5
+                print(f"AI grading rate limited (attempt {attempt + 1}/{max_retries}), retrying in {delay}s: {e}")
+                time.sleep(delay)
+            except APIError as e:
+                last_error = e
+                print(f"AI grading API error (attempt {attempt + 1}/{max_retries}): {e}")
+                break
             except Exception as e:
                 last_error = e
                 print(f"AI grading error (attempt {attempt + 1}/{max_retries}): {e}")

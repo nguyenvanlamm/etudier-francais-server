@@ -15,4 +15,4 @@ httpx>=0.28.1
 firebase-admin==6.4.0
 edge-tts==6.1.12
 google-cloud-storage==2.18.0
-google-genai==1.13.0
+openai>=1.0.0
