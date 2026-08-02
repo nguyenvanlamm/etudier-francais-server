@@ -65,10 +65,10 @@ def get_firebase_app():
 
 
 def verify_firebase_token(id_token: str) -> dict:
-    app = get_firebase_app()
     from firebase_admin import auth
 
     try:
+        app = get_firebase_app()
         decoded_token = auth.verify_id_token(id_token, app=app)
         return decoded_token
     except Exception as e:
