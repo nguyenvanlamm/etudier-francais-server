@@ -327,6 +327,8 @@ def update_me(
         current_user.name = data["name"]
     if "image" in data and data["image"]:
         current_user.image = data["image"]
+    if "isPro" in data:
+        current_user.is_pro = bool(data["isPro"])
     db.commit()
     db.refresh(current_user)
 

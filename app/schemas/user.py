@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
@@ -20,8 +20,8 @@ class UserUpdate(BaseModel):
 class UserResponse(UserBase):
     id: int
     image: Optional[str] = None
-    is_pro: bool
-    is_verified: bool
+    is_pro: bool = Field(serialization_alias="isPro")
+    is_verified: bool = Field(serialization_alias="isVerified")
 
     class Config:
         from_attributes = True
